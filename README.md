@@ -1,4 +1,4 @@
-# SubAccount
+# JioJio — Subscription & Account Manager
 
 A local-first, cross-platform subscription management desktop app built with **Tauri 2 + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui**.
 

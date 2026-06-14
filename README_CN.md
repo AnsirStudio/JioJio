@@ -1,4 +1,4 @@
-# SubAccount
+# JioJio — 订阅与账号管理
 
 一款本地优先、跨平台的订阅管理桌面应用，基于 **Tauri 2 + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui** 构建。
 

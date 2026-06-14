@@ -1,12 +1,12 @@
 [package]
-name = "sub-account"
-version = "0.2.0"
+name = "jiojio"
+version = "0.1.0"
 description = "Local-first subscription manager"
-authors = ["SubAccount"]
+authors = ["JioJio"]
 edition = "2021"
 
 [lib]
-name = "sub_account_lib"
+name = "jiojio_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
