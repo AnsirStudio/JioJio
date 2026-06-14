@@ -225,6 +225,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "editor.accountMethod": "登录方式",
     "editor.accountInfo": "账号信息",
     "editor.pinned": "置顶订阅",
+    "sidebar.noUpcoming": "暂无订阅",
+    "sidebar.noPinned": "暂无置顶订阅",
     "editor.reminder": "到期提醒",
     "reminder.sameDay": "当天",
     "reminder.previousDay": "前一天",
@@ -457,6 +459,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "editor.accountMethod": "Login Method",
     "editor.accountInfo": "Account Info",
     "editor.pinned": "Pinned",
+    "sidebar.noUpcoming": "No upcoming subscriptions",
+    "sidebar.noPinned": "No pinned subscriptions",
     "editor.reminder": "Reminder",
     "reminder.sameDay": "Same day",
     "reminder.previousDay": "1 day before",
@@ -986,7 +990,9 @@ export default function App() {
           </button>
           {isSidebarUpcomingOpen ? (
             <div className="mt-1 flex flex-col gap-1">
-              {sidebarUpcomingSubscriptions.map((subscription) => {
+              {sidebarUpcomingSubscriptions.length === 0 ? (
+                <div className="pl-8 py-1.5 text-[11px] text-muted-foreground">{t("sidebar.noUpcoming")}</div>
+              ) : sidebarUpcomingSubscriptions.map((subscription) => {
                 const timingText = overviewUpcomingTimingText(daysUntil(subscription.endDate), subscription.isAutoRenewEnabled, language, t);
                 return (
                   <button
@@ -1024,7 +1030,7 @@ export default function App() {
 
         <div className="min-h-0 flex-1 overflow-auto p-2">
           {filteredSubscriptions.length === 0 ? (
-            null
+            <div className="px-3 py-2 text-xs text-muted-foreground">{t("sidebar.noPinned")}</div>
           ) : (
             <div className="space-y-1">
               {filteredSubscriptions.map((subscription) => (
@@ -1196,6 +1202,7 @@ export default function App() {
                   setSelectedId(subscription.id);
                   setMainView("detail");
                 }}
+                onAdd={openAddSelect}
               />
             ) : mainView === "accounts" ? (
               <BlankPage />
@@ -1881,10 +1888,12 @@ function DetailedSubscriptionsPage({
   subscriptions,
   displayMode,
   onOpen,
+  onAdd,
 }: {
   subscriptions: Subscription[];
   displayMode: DetailDisplayMode;
   onOpen: (subscription: Subscription) => void;
+  onAdd: () => void;
 }) {
   const { language, t } = usePreferences();
   const [detailQuery, setDetailQuery] = useState("");
@@ -1937,7 +1946,7 @@ function DetailedSubscriptionsPage({
   }, [detailQuery, cycleFilter, paymentFilter, categoryFilter, autoRenewFilter, reminderFilter, sort, direction, tableSort, tableDirection]);
 
   if (subscriptions.length === 0) {
-    return <BlankPage />;
+    return <EmptyDetail onAdd={onAdd} />;
   }
 
   return (
