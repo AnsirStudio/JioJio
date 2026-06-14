@@ -118,8 +118,13 @@ input[type="date"] {
 }
 
 .settings-segment-button[data-slot="toggle-group-item"] {
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
+  line-height: 1 !important;
+}
+
+.category-filter-button {
+  font-size: 12px !important;
   line-height: 1 !important;
 }
 

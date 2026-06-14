@@ -75,6 +75,7 @@ import {
   serviceTemplates,
   subscriptionStatus,
   Subscription,
+  SubscriptionCategory,
   toCny,
   toISODate,
 } from "./lib/subscriptions";
@@ -214,6 +215,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "pagination.previous": "上一页",
     "pagination.next": "下一页",
     "add.searchPlatform": "搜索平台",
+    "add.allCategories": "全部",
     "add.noResults": "没有找到匹配的平台",
     "editor.category": "类别",
     "editor.customCategory": "自定义类别",
@@ -305,6 +307,10 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "service.telegram": "Telegram",
     "service.jd": "京东",
     "service.taobao": "淘宝",
+    "service.x": "X",
+    "service.linkedin": "LinkedIn",
+    "service.apple-tv": "Apple TV+",
+    "service.zoom": "Zoom",
     "service.chatgpt": "ChatGPT",
     "service.claude": "Claude",
     "service.gemini": "Gemini",
@@ -452,6 +458,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "pagination.previous": "Previous",
     "pagination.next": "Next",
     "add.searchPlatform": "Search platforms",
+    "add.allCategories": "All",
     "add.noResults": "No matching platforms",
     "editor.category": "Category",
     "editor.customCategory": "Custom Category",
@@ -543,6 +550,10 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "service.telegram": "Telegram",
     "service.jd": "JD.com",
     "service.taobao": "Taobao",
+    "service.x": "X",
+    "service.linkedin": "LinkedIn",
+    "service.apple-tv": "Apple TV+",
+    "service.zoom": "Zoom",
     "service.chatgpt": "ChatGPT",
     "service.claude": "Claude",
     "service.gemini": "Gemini",
@@ -1761,7 +1772,13 @@ type AccountStore = Record<string, string[]>;
 function loadAccountStore(): AccountStore {
   try {
     const raw = localStorage.getItem(accountStorageKey);
-    if (!raw) return {};
+    if (!raw) {
+      const defaults: AccountStore = {};
+      for (const method of accountMethodOptions) {
+        defaults[method.value] = [];
+      }
+      return defaults;
+    }
     const parsed = JSON.parse(raw);
     return typeof parsed === "object" && parsed !== null ? parsed : {};
   } catch {
@@ -2743,6 +2760,20 @@ function Editor({
   const cycleOptionsForLanguage = useMemo(() => localizedCycleOptions(t), [t]);
   const paymentOptionsForLanguage = useMemo(() => localizedPaymentOptions(t), [t]);
   const accountOptionsForLanguage = useMemo(() => localizedAccountOptions(t), [t]);
+  const accountStore = loadAccountStore();
+  const enabledAccountOptions = useMemo(
+    () => accountOptionsForLanguage.filter((option) => accountStore[option.value] !== undefined),
+    [accountOptionsForLanguage, accountStore],
+  );
+  const savedAccounts = useMemo(() => accountStore[draft.accountMethod] ?? [], [accountStore, draft.accountMethod]);
+  const [accountInputFocused, setAccountInputFocused] = useState(false);
+
+  useEffect(() => {
+    if (enabledAccountOptions.length > 0 && !enabledAccountOptions.some((option) => option.value === draft.accountMethod)) {
+      patch({ accountMethod: enabledAccountOptions[0].value });
+    }
+  }, [enabledAccountOptions, draft.accountMethod]);
+
   const reminderOptionsForLanguage = useMemo(() => localizedReminderOptions(t), [t]);
   const template = serviceTemplateFor(draft);
   const templatePlanConfig = planConfigForTemplateId(template?.id);
@@ -3011,10 +3042,36 @@ function Editor({
           <OptionSelect className="w-fit min-w-20 max-w-36" variant="subtle" value={draft.paymentMethod} options={paymentOptionsForLanguage} onValueChange={(value) => patch({ paymentMethod: value })} />
         </FieldRow>
         <FieldRow label={t("editor.accountMethod")}>
-          <OptionSelect className="w-fit min-w-20 max-w-36" variant="subtle" value={draft.accountMethod} options={accountOptionsForLanguage} onValueChange={(value) => patch({ accountMethod: value })} />
+          <OptionSelect className="w-fit min-w-20 max-w-36" variant="subtle" value={draft.accountMethod} options={enabledAccountOptions} onValueChange={(value) => patch({ accountMethod: value })} />
         </FieldRow>
         <FieldRow label={t("editor.accountInfo")}>
-          <Input className="w-48 text-right" placeholder={t("editor.accountInfo")} value={draft.accountIdentifier} onChange={(event) => patch({ accountIdentifier: event.target.value })} />
+          <div className="relative w-48">
+            <Input
+              className="w-48 text-right"
+              placeholder={t("editor.accountInfo")}
+              value={draft.accountIdentifier}
+              onChange={(event) => patch({ accountIdentifier: event.target.value })}
+              onFocus={() => setAccountInputFocused(true)}
+              onBlur={() => setTimeout(() => setAccountInputFocused(false), 150)}
+            />
+            {accountInputFocused && savedAccounts.length > 0 && !savedAccounts.includes(draft.accountIdentifier) ? (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-md">
+                {savedAccounts.map((account) => (
+                  <button
+                    key={account}
+                    className="flex w-full items-center px-3 py-2 text-left text-xs transition hover:bg-accent"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      patch({ accountIdentifier: account });
+                      setAccountInputFocused(false);
+                    }}
+                  >
+                    {account}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </FieldRow>
         <FieldRow label={t("editor.pinned")}>
           <Switch checked={draft.isPinned} onCheckedChange={(checked) => patch({ isPinned: checked })} />
@@ -3076,10 +3133,12 @@ function AddSelectPage({
   onPickTemplate: (template: ServiceTemplate) => void;
 }) {
   const { t } = usePreferences();
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const filteredTemplates = serviceTemplates.filter((template) => {
     const term = query.trim().toLowerCase();
-    if (!term) return true;
-    return `${template.serviceName} ${serviceLabel(template, t)} ${categoryText(template.category, undefined, t)}`.toLowerCase().includes(term);
+    const matchesQuery = !term || `${template.serviceName} ${serviceLabel(template, t)} ${categoryText(template.category, undefined, t)}`.toLowerCase().includes(term);
+    const matchesCategory = categoryFilter === "all" || template.category === categoryFilter;
+    return matchesQuery && matchesCategory;
   });
   const [page, setPage] = useState(1);
   const pageSize = 48;
@@ -3088,7 +3147,7 @@ function AddSelectPage({
 
   useEffect(() => {
     setPage(1);
-  }, [query]);
+  }, [query, categoryFilter]);
 
   return (
     <div className="flex min-h-[calc(100vh-160px)] flex-1 flex-col">
@@ -3101,6 +3160,22 @@ function AddSelectPage({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
           />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {[{ value: "all", label: t("add.allCategories") }, ...categoryOptions].map((option) => (
+            <button
+              key={option.value}
+              className={cn(
+                "category-filter-button rounded-full px-3 py-1.5 font-semibold transition",
+                categoryFilter === option.value
+                  ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700",
+              )}
+              onClick={() => setCategoryFilter(option.value)}
+            >
+              {option.value === "all" ? t("add.allCategories") : categoryText(option.value as SubscriptionCategory, undefined, t)}
+            </button>
+          ))}
         </div>
       </div>
 
