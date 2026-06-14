@@ -82,7 +82,7 @@ import { cn } from "./lib/utils";
 
 type DraftMode = "add" | "edit";
 type MainView = "overview" | "detailSubscriptions" | "accounts" | "detail" | "addSelect" | "settings";
-type SettingsTab = "basic" | "exchange";
+type SettingsTab = "basic" | "accounts" | "exchange";
 type LanguageCode = "zh" | "en";
 type ThemePreference = "system" | "light" | "dark";
 type DetailSubscriptionSort = "endDate" | "startDate" | "monthlyPrice" | "annualPrice";
@@ -136,7 +136,11 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "common.enabled": "开启",
     "common.disabled": "关闭",
     "settings.basic": "基础设置",
+    "settings.accounts": "常用账号",
     "settings.exchange": "汇率设置",
+    "settings.account.hint": "管理你常用的登录账号，添加订阅时可快速选择",
+    "settings.account.addPlaceholder": "输入账号…",
+    "settings.account.add": "添加",
     "settings.language": "语言",
     "settings.theme": "主题",
     "settings.language.zh": "中文",
@@ -370,7 +374,11 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "common.enabled": "On",
     "common.disabled": "Off",
     "settings.basic": "Basic",
+    "settings.accounts": "Accounts",
     "settings.exchange": "Rates",
+    "settings.account.hint": "Manage your frequently used login accounts for quick selection when adding subscriptions",
+    "settings.account.addPlaceholder": "Enter account…",
+    "settings.account.add": "Add",
     "settings.language": "Language",
     "settings.theme": "Theme",
     "settings.language.zh": "中文",
@@ -1122,6 +1130,9 @@ export default function App() {
                 <ToggleGroupItem className="settings-segment-button w-20 data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-950 dark:data-[state=on]:bg-white dark:data-[state=on]:text-zinc-950" value="basic">
                   {t("settings.basic")}
                 </ToggleGroupItem>
+                <ToggleGroupItem className="settings-segment-button w-20 data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-950 dark:data-[state=on]:bg-white dark:data-[state=on]:text-zinc-950" value="accounts">
+                  {t("settings.accounts")}
+                </ToggleGroupItem>
                 <ToggleGroupItem className="settings-segment-button w-20 data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-950 dark:data-[state=on]:bg-white dark:data-[state=on]:text-zinc-950" value="exchange">
                   {t("settings.exchange")}
                 </ToggleGroupItem>
@@ -1227,7 +1238,9 @@ export default function App() {
 }
 
 function SettingsPage({ activeTab }: { activeTab: SettingsTab }) {
-  return activeTab === "exchange" ? <ExchangeSettings /> : <BasicSettings />;
+  if (activeTab === "exchange") return <ExchangeSettings />;
+  if (activeTab === "accounts") return <AccountSettings />;
+  return <BasicSettings />;
 }
 
 function QuickPreferenceButtons({
@@ -1736,6 +1749,132 @@ function ExchangeSettings() {
               ))}
           </TableBody>
         </Table>
+      </Card>
+    </div>
+  );
+}
+
+const accountStorageKey = "jiojio.accounts.v1";
+
+type AccountStore = Record<string, string[]>;
+
+function loadAccountStore(): AccountStore {
+  try {
+    const raw = localStorage.getItem(accountStorageKey);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAccountStore(store: AccountStore) {
+  localStorage.setItem(accountStorageKey, JSON.stringify(store, null, 2));
+}
+
+function AccountSettings() {
+  const { t } = usePreferences();
+  const [store, setStore] = useState<AccountStore>(loadAccountStore);
+  const [inputs, setInputs] = useState<Record<string, string>>({});
+
+  const allMethods = accountMethodOptions;
+
+  function isEnabled(method: string) {
+    return store[method] !== undefined;
+  }
+
+  function toggleMethod(method: string) {
+    setStore((prev) => {
+      const next = { ...prev };
+      if (next[method] !== undefined) {
+        delete next[method];
+      } else {
+        next[method] = [];
+      }
+      saveAccountStore(next);
+      return next;
+    });
+  }
+
+  function addAccount(method: string) {
+    const value = (inputs[method] ?? "").trim();
+    if (!value) return;
+    setStore((prev) => {
+      const current = prev[method] ?? [];
+      if (current.includes(value)) return prev;
+      const next = { ...prev, [method]: [...current, value] };
+      saveAccountStore(next);
+      return next;
+    });
+    setInputs((prev) => ({ ...prev, [method]: "" }));
+  }
+
+  function removeAccount(method: string, account: string) {
+    setStore((prev) => {
+      const current = (prev[method] ?? []).filter((item) => item !== account);
+      const next = { ...prev, [method]: current };
+      saveAccountStore(next);
+      return next;
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card className="gap-0 px-5">
+        {allMethods.map((method, index) => {
+          const enabled = isEnabled(method.value);
+          const accounts = store[method.value] ?? [];
+          return (
+            <div key={method.value} className={cn("py-4", index < allMethods.length - 1 && "border-b border-border")}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <PaymentIcon path={method.iconPath} />
+                  <span className="text-sm font-semibold">{method.label}</span>
+                </div>
+                <Switch checked={enabled} onCheckedChange={() => toggleMethod(method.value)} />
+              </div>
+              {enabled ? (
+                <div className="mt-3 flex flex-col gap-2 pl-9">
+                  {accounts.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {accounts.map((account) => (
+                        <Badge key={account} variant="secondary" className="gap-1 pr-1 font-normal">
+                          <span>{account}</span>
+                          <button
+                            className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted-foreground/20 hover:text-foreground"
+                            onClick={() => removeAccount(method.value, account)}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      className="h-8 flex-1 text-xs"
+                      placeholder={t("settings.account.addPlaceholder")}
+                      value={inputs[method.value] ?? ""}
+                      onChange={(event) => setInputs((prev) => ({ ...prev, [method.value]: event.target.value }))}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") addAccount(method.value);
+                      }}
+                    />
+                    <Button
+                      className="h-8 px-3 text-xs"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => addAccount(method.value)}
+                    >
+                      {t("settings.account.add")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </Card>
     </div>
   );
