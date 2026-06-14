@@ -1310,6 +1310,7 @@ function OverviewDashboard({
 
   return (
     <div className="flex flex-col gap-3">
+      {subscriptions.length === 0 ? <EmptyDetail onAdd={onAdd} /> : null}
       <div className="grid grid-cols-4 gap-3">
         <OverviewMetricCard
           icon={<BarChart3 className="h-4 w-4" />}
@@ -1449,8 +1450,6 @@ function OverviewDashboard({
       </div>
 
       <OverviewCashflowTimelineCard items={stats.cashflowTimeline} title={t("overview.cashflowTimeline")} description={t("overview.cashflowTimelineDescription")} />
-
-      {subscriptions.length === 0 ? <EmptyDetail onAdd={onAdd} /> : null}
     </div>
   );
 }
