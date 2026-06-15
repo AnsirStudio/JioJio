@@ -25,6 +25,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   Clock3,
+  Copy,
   Edit3,
   ImagePlus,
   ListChecks,
@@ -795,6 +796,12 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(() => loadSubscriptions()[0]?.id ?? null);
   const [query, setQuery] = useState("");
   const [mainView, setMainView] = useState<MainView>("overview");
+  const [previousView, setPreviousView] = useState<MainView>("overview");
+
+  function navigateTo(view: MainView) {
+    setPreviousView(mainView);
+    setMainView(view);
+  }
   const [draft, setDraft] = useState<Subscription | null>(null);
   const [draftMode, setDraftMode] = useState<DraftMode>("add");
   const [templateQuery, setTemplateQuery] = useState("");
@@ -883,19 +890,19 @@ export default function App() {
   function openAdd(subscription: Subscription) {
     setDraft(normalizeSubscription(subscription));
     setDraftMode("add");
-    setMainView("detail");
+    navigateTo("detail");
   }
 
   function openAddSelect() {
     setDraft(null);
     setTemplateQuery("");
-    setMainView("addSelect");
+    navigateTo("addSelect");
   }
 
   function openEdit(subscription: Subscription) {
     setDraft(normalizeSubscription({ ...subscription }));
     setDraftMode("edit");
-    setMainView("detail");
+    navigateTo("detail");
   }
 
   function saveDraft() {
@@ -908,12 +915,12 @@ export default function App() {
       setSubscriptions((items) => sortSubscriptions(items.map((item) => (item.id === normalized.id ? normalized : item))));
     }
     setDraft(null);
-    setMainView("detail");
+    navigateTo("detail");
   }
 
   function cancelDraft() {
     setDraft(null);
-    setMainView(draftMode === "add" ? "addSelect" : "detail");
+    setMainView(draftMode === "add" ? "addSelect" : previousView);
   }
 
   function deleteSubscription(subscription: Subscription) {
@@ -964,7 +971,7 @@ export default function App() {
             )}
             onClick={() => {
               setDraft(null);
-              setMainView("overview");
+              navigateTo("overview");
             }}
           >
             <BarChart3 className="h-3.5 w-3.5 text-current" />
@@ -979,7 +986,7 @@ export default function App() {
             )}
             onClick={() => {
               setDraft(null);
-              setMainView("detailSubscriptions");
+              navigateTo("detailSubscriptions");
             }}
           >
             <ListChecks className="h-3.5 w-3.5 text-current" />
@@ -994,7 +1001,7 @@ export default function App() {
             )}
             onClick={() => {
               setDraft(null);
-              setMainView("accounts");
+              navigateTo("accounts");
             }}
           >
             <UserRound className="h-3.5 w-3.5 text-current" />
@@ -1025,7 +1032,7 @@ export default function App() {
                     onClick={() => {
                       setSelectedId(subscription.id);
                       setDraft(null);
-                      setMainView("detail");
+                      navigateTo("detail");
                     }}
                   >
                     <ServiceIcon subscription={subscription} size="sm" framed={false} />
@@ -1064,7 +1071,7 @@ export default function App() {
                   onClick={() => {
                     setSelectedId(subscription.id);
                     setDraft(null);
-                    setMainView("detail");
+                    navigateTo("detail");
                   }}
                 >
                   <ServiceIcon subscription={subscription} size="sm" framed={false} />
@@ -1092,7 +1099,7 @@ export default function App() {
             )}
             onClick={() => {
               setDraft(null);
-              setMainView("settings");
+              navigateTo("settings");
             }}
           >
             <Settings className="h-3.5 w-3.5 text-current" />
@@ -1109,7 +1116,7 @@ export default function App() {
         >
           {mainView === "addSelect" ? (
             <>
-              <Button className="topbar-small-button" variant="secondary" size="xs" onClick={() => setMainView("overview")}>
+              <Button className="topbar-small-button" variant="secondary" size="xs" onClick={() => { setDraft(null); setMainView(previousView); }}>
                 <ArrowLeft data-icon="inline-start" />
                 <span className="topbar-button-label">{t("common.back")}</span>
               </Button>
@@ -1125,6 +1132,20 @@ export default function App() {
                 <span className="topbar-button-label">{t("common.back")}</span>
               </Button>
               <div />
+            </>
+          ) : mainView === "detail" ? (
+            <>
+              <Button className="topbar-small-button" variant="secondary" size="xs" onClick={() => setMainView(previousView)}>
+                <ArrowLeft data-icon="inline-start" />
+                <span className="topbar-button-label">{t("common.back")}</span>
+              </Button>
+              <QuickPreferenceButtons
+                language={language}
+                theme={theme}
+                t={t}
+                onToggleTheme={toggleThemeMode}
+                onToggleLanguage={toggleLanguageMode}
+              />
             </>
           ) : mainView === "settings" ? (
             <>
@@ -1148,7 +1169,13 @@ export default function App() {
                   {t("settings.exchange")}
                 </ToggleGroupItem>
               </ToggleGroup>
-              <div />
+              <QuickPreferenceButtons
+                language={language}
+                theme={theme}
+                t={t}
+                onToggleTheme={toggleThemeMode}
+                onToggleLanguage={toggleLanguageMode}
+              />
             </>
           ) : mainView === "detailSubscriptions" ? (
             <>
@@ -1196,7 +1223,7 @@ export default function App() {
         <div className="min-h-0 flex-1 overflow-auto">
           <div
             className={cn(
-              "mx-auto flex w-full flex-col gap-4 p-4",
+              "mx-auto flex w-full flex-col gap-4 px-3 py-4",
               mainView === "detailSubscriptions" && detailDisplayMode === "table" ? "h-full min-h-0 overflow-hidden" : "min-h-full",
             )}
           >
@@ -1227,7 +1254,13 @@ export default function App() {
                 onAdd={openAddSelect}
               />
             ) : mainView === "accounts" ? (
-              <BlankPage />
+              <AccountsPage
+                subscriptions={subscriptions}
+                onOpen={(subscription) => {
+                  setSelectedId(subscription.id);
+                  setMainView("detail");
+                }}
+              />
             ) : mainView === "detail" && selected ? (
               <SubscriptionDetail
                 subscription={selected}
@@ -1281,6 +1314,401 @@ function QuickPreferenceButtons({
 
 function BlankPage() {
   return <div className="min-h-full" />;
+}
+
+// ─── Accounts Page ───────────────────────────────────────────────────────────
+
+type AccountsView = "by-account" | "by-platform";
+
+type AccountGroup = {
+  identifier: string;
+  note: string;
+  subscriptions: Subscription[];
+};
+
+type MethodGroup = {
+  method: (typeof accountMethodOptions)[number];
+  accounts: AccountGroup[];
+  totalSubs: number;
+  monthlyCny: number;
+};
+
+function AccountsPage({
+  subscriptions,
+  onOpen,
+}: {
+  subscriptions: Subscription[];
+  onOpen: (subscription: Subscription) => void;
+}) {
+  const { t, language } = usePreferences();
+  const [view, setView] = useState<AccountsView>("by-account");
+  const accountStore = useMemo(() => loadAccountStore(), []);
+
+  const activeSubscriptions = useMemo(
+    () => subscriptions.filter((s) => subscriptionStatus(s) === "active"),
+    [subscriptions],
+  );
+
+  const methodGroups = useMemo<MethodGroup[]>(() => {
+    const methodMap = new Map<string, Map<string, AccountGroup>>();
+
+    // Seed from AccountStore (enabled methods + saved accounts)
+    for (const [method, entries] of Object.entries(accountStore)) {
+      if (!methodMap.has(method)) methodMap.set(method, new Map());
+      for (const entry of entries) {
+        if (!methodMap.get(method)!.has(entry.value)) {
+          methodMap.get(method)!.set(entry.value, { identifier: entry.value, note: entry.note, subscriptions: [] });
+        }
+      }
+    }
+
+    // Attach subscriptions to their accounts
+    for (const sub of activeSubscriptions) {
+      const method = sub.accountMethod;
+      const id = sub.accountIdentifier.trim();
+      if (!id) continue; // unlinked handled separately
+      if (!methodMap.has(method)) methodMap.set(method, new Map());
+      if (!methodMap.get(method)!.has(id)) {
+        const note = (accountStore[method] ?? []).find((e) => e.value === id)?.note ?? "";
+        methodMap.get(method)!.set(id, { identifier: id, note, subscriptions: [] });
+      }
+      methodMap.get(method)!.get(id)!.subscriptions.push(sub);
+    }
+
+    return accountMethodOptions
+      .filter((opt) => methodMap.has(opt.value) && methodMap.get(opt.value)!.size > 0)
+      .map((opt) => {
+        const accounts = Array.from(methodMap.get(opt.value)!.values()).sort(
+          (a, b) => b.subscriptions.length - a.subscriptions.length,
+        );
+        const totalSubs = accounts.reduce((s, a) => s + a.subscriptions.length, 0);
+        const monthlyCny = accounts.reduce(
+          (s, a) => s + a.subscriptions.reduce((ss, sub) => ss + monthlyUnitCny(sub), 0),
+          0,
+        );
+        return { method: opt, accounts, totalSubs, monthlyCny };
+      });
+  }, [activeSubscriptions, accountStore]);
+
+  const unlinkedSubs = useMemo(
+    () => activeSubscriptions.filter((s) => !s.accountIdentifier.trim()),
+    [activeSubscriptions],
+  );
+
+  const uniqueAccountCount = useMemo(
+    () =>
+      new Set(
+        activeSubscriptions.filter((s) => s.accountIdentifier.trim()).map((s) => `${s.accountMethod}::${s.accountIdentifier}`),
+      ).size,
+    [activeSubscriptions],
+  );
+
+  const viewLabel = (v: AccountsView) =>
+    language === "zh"
+      ? v === "by-account" ? "账号视角" : "平台视角"
+      : v === "by-account" ? "By Account" : "By Platform";
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Summary row + toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span>
+            <span className="font-semibold text-foreground">{activeSubscriptions.length}</span>{" "}
+            {language === "zh" ? "个订阅" : "subscriptions"}
+          </span>
+          <span>·</span>
+          <span>
+            <span className="font-semibold text-foreground">{uniqueAccountCount}</span>{" "}
+            {language === "zh" ? "个账号" : "accounts"}
+          </span>
+          {unlinkedSubs.length > 0 && (
+            <>
+              <span>·</span>
+              <span className="font-medium text-amber-500">
+                {unlinkedSubs.length} {language === "zh" ? "个未关联" : "unlinked"}
+              </span>
+            </>
+          )}
+        </div>
+        <ToggleGroup
+          type="single"
+          value={view}
+          onValueChange={(v) => { if (v) setView(v as AccountsView); }}
+          variant="outline"
+          size="sm"
+          spacing={0}
+        >
+          <ToggleGroupItem
+            className="w-28 px-5 !text-[11px] font-semibold data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-950 dark:data-[state=on]:bg-white dark:data-[state=on]:text-zinc-950"
+            value="by-account"
+          >
+            {viewLabel("by-account")}
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            className="w-28 px-5 !text-[11px] font-semibold data-[state=on]:bg-zinc-200 data-[state=on]:text-zinc-950 dark:data-[state=on]:bg-white dark:data-[state=on]:text-zinc-950"
+            value="by-platform"
+          >
+            {viewLabel("by-platform")}
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      {view === "by-account" ? (
+        <AccountsByAccountView methodGroups={methodGroups} unlinkedSubs={unlinkedSubs} onOpen={onOpen} t={t} language={language} />
+      ) : (
+        <AccountsByPlatformView subscriptions={activeSubscriptions} onOpen={onOpen} t={t} language={language} />
+      )}
+    </div>
+  );
+}
+
+function AccountsByAccountView({
+  methodGroups,
+  unlinkedSubs,
+  onOpen,
+  t,
+  language,
+}: {
+  methodGroups: MethodGroup[];
+  unlinkedSubs: Subscription[];
+  onOpen: (s: Subscription) => void;
+  t: (k: string) => string;
+  language: LanguageCode;
+}) {
+  if (methodGroups.length === 0 && unlinkedSubs.length === 0) {
+    return (
+      <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+        {language === "zh" ? "暂无订阅数据" : "No subscriptions yet"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {methodGroups.map((group) => (
+        <Card key={group.method.value} className="gap-0 p-0 overflow-hidden">
+          {/* Method header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-muted border-b border-border">
+            <div className="flex items-center gap-2.5">
+              <PaymentIcon path={group.method.iconPath} />
+              <span className="text-sm font-semibold">{t(`account.${group.method.value}`)}</span>
+              <span className="text-xs text-muted-foreground">
+                {group.accounts.length} {language === "zh" ? "个账号" : "accounts"} · {group.totalSubs} {language === "zh" ? "个订阅" : "subs"}
+              </span>
+            </div>
+            {group.monthlyCny > 0 && (
+              <span className="text-xs font-semibold text-muted-foreground">
+                {formatMoney(group.monthlyCny, "CNY")}/{language === "zh" ? "月" : "mo"}
+              </span>
+            )}
+          </div>
+
+          {/* Accounts within this method */}
+          {group.accounts.map((account, accIdx) => (
+            <div key={account.identifier || `__empty__${accIdx}`} className={cn(accIdx > 0 && "border-t border-border")}>
+              {/* Account identifier row */}
+              <div className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex flex-1 min-w-0 items-center gap-2">
+                  <span className="text-sm font-medium truncate">{account.identifier || (language === "zh" ? "未填写" : "Not set")}</span>
+                  {account.note && (
+                    <span className="shrink-0 text-xs text-muted-foreground">· {account.note}</span>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                  {account.subscriptions.length > 0 ? (
+                    <>
+                      <span>{account.subscriptions.length} {language === "zh" ? "个" : ""}</span>
+                      <span className="font-semibold text-foreground">
+                        {formatMoney(account.subscriptions.reduce((s, sub) => s + monthlyUnitCny(sub), 0), "CNY")}
+                        /{language === "zh" ? "月" : "mo"}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="italic">{language === "zh" ? "暂无订阅" : "No subs"}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Subscriptions for this account */}
+              {account.subscriptions.map((sub, subIdx) => {
+                const days = daysUntil(sub.endDate);
+                const urgent = days >= 0 && days <= 7;
+                return (
+                  <button
+                    key={sub.id}
+                    className={cn(
+                      "flex w-full items-center gap-3 border-t border-border/50 px-4 py-2 pl-8 text-left transition hover:bg-muted/40",
+                    )}
+                    onClick={() => onOpen(sub)}
+                  >
+                    <ServiceIcon subscription={sub} size="sm" framed={false} />
+                    <div className="flex flex-1 min-w-0 items-center gap-2">
+                      <span className="text-xs font-semibold truncate">{serviceLabel(sub, t)}</span>
+                      <Badge variant="secondary" className="shrink-0 px-1 py-0 text-[10px]">
+                        {categoryText(sub.category, sub.customCategoryName, t)}
+                      </Badge>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3 text-xs">
+                      <span className={cn("text-muted-foreground", urgent && "font-medium text-amber-500")}>
+                        {days < 0
+                          ? language === "zh" ? "已过期" : "Expired"
+                          : days === 0
+                          ? language === "zh" ? "今天" : "Today"
+                          : language === "zh" ? `${days}天后` : `${days}d`}
+                        {" "}
+                        {sub.isAutoRenewEnabled
+                          ? language === "zh" ? "续费" : "renews"
+                          : language === "zh" ? "到期" : "expires"}
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {formatMoney(monthlyUnitCny(sub), "CNY")}/{language === "zh" ? "月" : "mo"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </Card>
+      ))}
+
+      {/* Subscriptions with no account info */}
+      {unlinkedSubs.length > 0 && (
+        <Card className="gap-0 p-0 overflow-hidden">
+          <div className="flex items-center gap-2.5 px-4 py-3 bg-muted border-b border-border">
+            <span className="text-sm font-semibold text-amber-500">
+              {language === "zh" ? "未关联账号" : "No Account Set"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {unlinkedSubs.length} {language === "zh" ? "个订阅未填写账号信息" : "subscriptions missing account info"}
+            </span>
+          </div>
+          {unlinkedSubs.map((sub, idx) => (
+            <button
+              key={sub.id}
+              className={cn(
+                "flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-muted/40",
+                idx < unlinkedSubs.length - 1 && "border-b border-border",
+              )}
+              onClick={() => onOpen(sub)}
+            >
+              <ServiceIcon subscription={sub} size="sm" framed={false} />
+              <span className="flex-1 text-sm font-medium truncate">{serviceLabel(sub, t)}</span>
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                {categoryText(sub.category, sub.customCategoryName, t)}
+              </Badge>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </button>
+          ))}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function AccountsByPlatformView({
+  subscriptions,
+  onOpen,
+  t,
+  language,
+}: {
+  subscriptions: Subscription[];
+  onOpen: (s: Subscription) => void;
+  t: (k: string) => string;
+  language: LanguageCode;
+}) {
+  const grouped = useMemo(() => {
+    const map = new Map<SubscriptionCategory, Subscription[]>();
+    for (const sub of subscriptions) {
+      if (!map.has(sub.category)) map.set(sub.category, []);
+      map.get(sub.category)!.push(sub);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length);
+  }, [subscriptions]);
+
+  if (subscriptions.length === 0) {
+    return (
+      <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+        {language === "zh" ? "暂无订阅数据" : "No subscriptions yet"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {grouped.map(([category, subs]) => (
+        <Card key={category} className="gap-0 p-0 overflow-hidden">
+          {/* Category header */}
+          <div className="flex items-center gap-2.5 px-4 py-3 bg-muted border-b border-border">
+            <span className="text-sm font-semibold">{categoryText(category, "", t)}</span>
+            <span className="text-xs text-muted-foreground">
+              {subs.length} {language === "zh" ? "个" : "items"}
+            </span>
+          </div>
+
+          {/* Subscription rows */}
+          {subs.map((sub, idx) => {
+            const methodOpt = accountMethodOptions.find((m) => m.value === sub.accountMethod);
+            const days = daysUntil(sub.endDate);
+            const urgent = days >= 0 && days <= 7;
+            const hasAccount = sub.accountIdentifier.trim();
+
+            return (
+              <button
+                key={sub.id}
+                className={cn(
+                  "flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-muted/40",
+                  idx < subs.length - 1 && "border-b border-border",
+                )}
+                onClick={() => onOpen(sub)}
+              >
+                <ServiceIcon subscription={sub} size="sm" framed={false} />
+
+                {/* Service name + plan */}
+                <div className="w-36 min-w-0 shrink-0">
+                  <div className="truncate text-sm font-semibold">{serviceLabel(sub, t)}</div>
+                  {sub.planName && (
+                    <div className="truncate text-xs text-muted-foreground">{sub.planName}</div>
+                  )}
+                </div>
+
+                {/* Account info */}
+                <div className="flex flex-1 min-w-0 items-center gap-1.5">
+                  {methodOpt && <PaymentIcon path={methodOpt.iconPath} />}
+                  {hasAccount ? (
+                    <span className="truncate text-xs text-muted-foreground">{sub.accountIdentifier}</span>
+                  ) : (
+                    <span className="text-xs font-medium text-amber-500">
+                      {language === "zh" ? "未设置账号" : "No account"}
+                    </span>
+                  )}
+                </div>
+
+                {/* End date + cost */}
+                <div className="shrink-0 text-right text-xs">
+                  <div className={cn("font-medium", urgent ? "text-amber-500" : "text-muted-foreground")}>
+                    {days < 0
+                      ? language === "zh" ? "已过期" : "Expired"
+                      : days === 0
+                      ? language === "zh" ? "今天" : "Today"
+                      : language === "zh" ? `${days}天后` : `${days}d`}
+                    {" "}
+                    {sub.isAutoRenewEnabled
+                      ? language === "zh" ? "续费" : "renews"
+                      : language === "zh" ? "到期" : "expires"}
+                  </div>
+                  <div className="font-semibold text-foreground">
+                    {formatMoney(monthlyUnitCny(sub), "CNY")}/{language === "zh" ? "月" : "mo"}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </Card>
+      ))}
+    </div>
+  );
 }
 
 function OverviewDashboard({
@@ -1767,7 +2195,8 @@ function ExchangeSettings() {
 
 const accountStorageKey = "jiojio.accounts.v1";
 
-type AccountStore = Record<string, string[]>;
+type AccountEntry = { value: string; note: string };
+type AccountStore = Record<string, AccountEntry[]>;
 
 function loadAccountStore(): AccountStore {
   try {
@@ -1780,7 +2209,17 @@ function loadAccountStore(): AccountStore {
       return defaults;
     }
     const parsed = JSON.parse(raw);
-    return typeof parsed === "object" && parsed !== null ? parsed : {};
+    if (typeof parsed !== "object" || parsed === null) return {};
+    // Migrate old string[] format to AccountEntry[]
+    const result: AccountStore = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (Array.isArray(value)) {
+        result[key] = value.map((item) =>
+          typeof item === "string" ? { value: item, note: "" } : item
+        );
+      }
+    }
+    return result;
   } catch {
     return {};
   }
@@ -1791,11 +2230,19 @@ function saveAccountStore(store: AccountStore) {
 }
 
 function AccountSettings() {
-  const { t } = usePreferences();
+  const { t, language } = usePreferences();
   const [store, setStore] = useState<AccountStore>(loadAccountStore);
-  const [inputs, setInputs] = useState<Record<string, string>>({});
+  const [addingMethod, setAddingMethod] = useState<string | null>(null);
+  const [addValue, setAddValue] = useState("");
+  const [addNote, setAddNote] = useState("");
+  const [editingKey, setEditingKey] = useState<{ method: string; index: number } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const allMethods = accountMethodOptions;
+  const noNoteLabel = "无";
+  const notePlaceholder = language === "zh" ? "请输入备注" : "Add a note";
 
   function isEnabled(method: string) {
     return store[method] !== undefined;
@@ -1812,87 +2259,216 @@ function AccountSettings() {
       saveAccountStore(next);
       return next;
     });
+    setAddingMethod(null);
+    setEditingKey(null);
+  }
+
+  function startAdding(method: string) {
+    setEditingKey(null);
+    setAddingMethod(method);
+    setAddValue("");
+    setAddNote("");
+  }
+
+  function cancelAdding() {
+    setAddingMethod(null);
+    setAddValue("");
+    setAddNote("");
   }
 
   function addAccount(method: string) {
-    const value = (inputs[method] ?? "").trim();
+    const value = addValue.trim();
     if (!value) return;
     setStore((prev) => {
       const current = prev[method] ?? [];
-      if (current.includes(value)) return prev;
-      const next = { ...prev, [method]: [...current, value] };
+      if (current.some((e) => e.value === value)) return prev;
+      const next = { ...prev, [method]: [...current, { value, note: addNote.trim() }] };
       saveAccountStore(next);
       return next;
     });
-    setInputs((prev) => ({ ...prev, [method]: "" }));
+    cancelAdding();
   }
 
-  function removeAccount(method: string, account: string) {
+  function startEditing(method: string, index: number, entry: AccountEntry) {
+    setAddingMethod(null);
+    setEditingKey({ method, index });
+    setEditValue(entry.value);
+    setEditNote(entry.note);
+  }
+
+  function cancelEditing() {
+    setEditingKey(null);
+  }
+
+  function saveEdit(method: string, index: number) {
+    const value = editValue.trim();
+    if (!value) { cancelEditing(); return; }
     setStore((prev) => {
-      const current = (prev[method] ?? []).filter((item) => item !== account);
-      const next = { ...prev, [method]: current };
+      const current = prev[method] ?? [];
+      const next = current.map((e, i) => i === index ? { value, note: editNote.trim() } : e);
+      const updated = { ...prev, [method]: next };
+      saveAccountStore(updated);
+      return updated;
+    });
+    cancelEditing();
+  }
+
+  function removeAccount(method: string, index: number) {
+    setStore((prev) => {
+      const next = { ...prev, [method]: (prev[method] ?? []).filter((_, i) => i !== index) };
       saveAccountStore(next);
       return next;
     });
+  }
+
+  function copyAccount(key: string, value: string) {
+    navigator.clipboard.writeText(value).catch(() => {});
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1500);
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="gap-0 px-5">
-        {allMethods.map((method, index) => {
-          const enabled = isEnabled(method.value);
-          const accounts = store[method.value] ?? [];
-          return (
-            <div key={method.value} className={cn("py-4", index < allMethods.length - 1 && "border-b border-border")}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <PaymentIcon path={method.iconPath} />
-                  <span className="text-sm font-semibold">{method.label}</span>
-                </div>
+    <div className="flex flex-col gap-3">
+      {allMethods.map((method) => {
+        const enabled = isEnabled(method.value);
+        const accounts = store[method.value] ?? [];
+        const isAdding = addingMethod === method.value;
+
+        return (
+          <Card key={method.value} className="gap-0 p-0 overflow-hidden">
+            {/* Method header */}
+            <div className={cn("flex items-center justify-between px-4 py-3 bg-muted", enabled && "border-b border-border")}>
+              <div className="flex items-center gap-2.5">
+                <PaymentIcon path={method.iconPath} />
+                <span className={cn("text-sm font-semibold", !enabled && "text-muted-foreground")}>
+                  {t(`account.${method.value}`)}
+                </span>
+                {enabled && accounts.length > 0 && (
+                  <span className="text-xs text-muted-foreground">{accounts.length}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {enabled && (
+                  <button
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition hover:bg-background hover:text-foreground"
+                    onClick={() => isAdding ? cancelAdding() : startAdding(method.value)}
+                  >
+                    {isAdding ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                  </button>
+                )}
                 <Switch checked={enabled} onCheckedChange={() => toggleMethod(method.value)} />
               </div>
-              {enabled ? (
-                <div className="mt-3 flex flex-col gap-2 pl-9">
-                  {accounts.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {accounts.map((account) => (
-                        <Badge key={account} variant="secondary" className="gap-1 pr-1 font-normal">
-                          <span>{account}</span>
-                          <button
-                            className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted-foreground/20 hover:text-foreground"
-                            onClick={() => removeAccount(method.value, account)}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="flex items-center gap-2">
-                    <Input
-                      className="h-8 flex-1 text-xs"
-                      placeholder={t("settings.account.addPlaceholder")}
-                      value={inputs[method.value] ?? ""}
-                      onChange={(event) => setInputs((prev) => ({ ...prev, [method.value]: event.target.value }))}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") addAccount(method.value);
-                      }}
-                    />
-                    <Button
-                      className="h-8 px-3 text-xs"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => addAccount(method.value)}
-                    >
-                      {t("settings.account.add")}
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
             </div>
-          );
-        })}
-      </Card>
+
+            {/* Account rows */}
+            {enabled && accounts.map((entry, idx) => {
+              const isEditingThis = editingKey?.method === method.value && editingKey?.index === idx;
+              const copyKey = `${method.value}-${idx}`;
+              const isCopied = copiedKey === copyKey;
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2.5",
+                    idx < accounts.length - 1 && "border-b border-border",
+                  )}
+                >
+                  {isEditingThis ? (
+                    <>
+                      <Input
+                        autoFocus
+                        className="h-8 w-24 shrink-0 text-sm"
+                        placeholder={notePlaceholder}
+                        value={editNote}
+                        onChange={(e) => setEditNote(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(method.value, idx);
+                          if (e.key === "Escape") cancelEditing();
+                        }}
+                      />
+                      <Input
+                        className="h-8 flex-1 text-sm"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(method.value, idx);
+                          if (e.key === "Escape") cancelEditing();
+                        }}
+                      />
+                      <Button className="h-8 px-3 text-xs" size="sm" onClick={() => saveEdit(method.value, idx)}>
+                        {t("common.save")}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-20 shrink-0 truncate text-xs text-muted-foreground">
+                        {entry.note.trim() || noNoteLabel}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate text-sm text-foreground">{entry.value}</span>
+                      <button
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 transition hover:bg-muted hover:text-foreground"
+                        title={isCopied ? "已复制" : "复制"}
+                        onClick={() => copyAccount(copyKey, entry.value)}
+                      >
+                        {isCopied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                      <button
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 transition hover:bg-muted hover:text-foreground"
+                        onClick={() => startEditing(method.value, idx, entry)}
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </button>
+                      <button
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 transition hover:bg-muted hover:text-foreground"
+                        onClick={() => removeAccount(method.value, idx)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Inline add input */}
+            {enabled && isAdding && (
+              <div className={cn("flex items-center gap-2 px-4 py-2.5", accounts.length > 0 && "border-t border-border")}>
+                <Input
+                  autoFocus
+                  className="h-8 w-24 shrink-0 text-sm"
+                  placeholder={notePlaceholder}
+                  value={addNote}
+                  onChange={(e) => setAddNote(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") addAccount(method.value);
+                    if (e.key === "Escape") cancelAdding();
+                  }}
+                />
+                <Input
+                  className="h-8 flex-1 text-sm"
+                  placeholder={t("settings.account.addPlaceholder")}
+                  value={addValue}
+                  onChange={(e) => setAddValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") addAccount(method.value);
+                    if (e.key === "Escape") cancelAdding();
+                  }}
+                />
+                <Button className="h-8 px-3 text-xs" size="sm" onClick={() => addAccount(method.value)}>
+                  {t("settings.account.add")}
+                </Button>
+              </div>
+            )}
+
+            {/* Empty hint when enabled but no accounts */}
+            {enabled && accounts.length === 0 && !isAdding && (
+              <div className="px-4 py-2.5 text-xs text-muted-foreground">
+                {t("settings.account.hint").split("，")[0]}
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
