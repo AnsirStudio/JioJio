@@ -1,6 +1,6 @@
 [package]
 name = "jiojio"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local-first subscription manager"
 authors = ["JioJio"]
 edition = "2021"
