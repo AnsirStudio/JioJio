@@ -3630,19 +3630,19 @@ function Editor({
               onFocus={() => setAccountInputFocused(true)}
               onBlur={() => setTimeout(() => setAccountInputFocused(false), 150)}
             />
-            {accountInputFocused && savedAccounts.length > 0 && !savedAccounts.includes(draft.accountIdentifier) ? (
+            {accountInputFocused && savedAccounts.length > 0 && !savedAccounts.some((account) => account.value === draft.accountIdentifier) ? (
               <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-md">
                 {savedAccounts.map((account) => (
                   <button
-                    key={account}
+                    key={account.value}
                     className="flex w-full items-center px-3 py-2 text-left text-xs transition hover:bg-accent"
                     onMouseDown={(event) => {
                       event.preventDefault();
-                      patch({ accountIdentifier: account });
+                      patch({ accountIdentifier: account.value });
                       setAccountInputFocused(false);
                     }}
                   >
-                    {account}
+                    {account.value}
                   </button>
                 ))}
               </div>
